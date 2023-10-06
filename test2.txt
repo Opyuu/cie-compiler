@@ -1,0 +1,9 @@
+IF 3 > 2 THEN
+    OUTPUT "HELLO WORLD"
+ENDIF
+DECLARE num = 1
+
+REPEAT
+    OUTPUT "HELLO WORLD"
+    num = num + 1
+UNTIL num == 2

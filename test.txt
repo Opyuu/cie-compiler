@@ -1,0 +1,13 @@
+OUTPUT "How many fibonacci numbers do you want?"
+INPUT nums
+OUTPUT ""
+
+DECLARE a = 0
+DECLARE b = 1
+WHILE nums > 0
+    OUTPUT a
+    DECLARE c = a + b
+    a = b
+    b = c
+    nums = nums - 1
+ENDWHILE

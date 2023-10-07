@@ -22,6 +22,10 @@ class TokenType(enum.Enum):
     CONSTANT = 110
     WHILE = 111
     ENDWHILE = 112
+    FOR = 113
+    TO = 114
+    STEP = 115
+    NEXT = 116
 
     # Operators
     EQ = 201

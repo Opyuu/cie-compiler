@@ -1,9 +1,19 @@
-IF 3 > 2 THEN
-    OUTPUT "HELLO WORLD"
-ENDIF
-DECLARE num = 1
+OUTPUT "How many fibonacci numbers do you want?"
+INPUT nums
+OUTPUT ""
 
-REPEAT
-    OUTPUT "HELLO WORLD"
-    num = num + 1
-UNTIL num == 2
+DECLARE a = 0
+DECLARE b = 1
+WHILE nums > 0
+    OUTPUT a
+    DECLARE c = a + b
+    a = b
+    b = c
+    nums = nums - 1
+ENDWHILE
+
+FOR counter = 1 TO 10 STEP 2
+    FOR counter2 = 1 TO 10
+        OUTPUT "HELLO"
+    NEXT counter2
+NEXT counter

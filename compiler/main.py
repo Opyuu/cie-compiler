@@ -15,7 +15,7 @@ def main():
 
 
     lexer = Lexer(source)
-    emitter = Emitter("../out.py")
+    emitter = Emitter("out.py")
     parser = Parser(lexer, emitter)
 
     emitter.writeFile()

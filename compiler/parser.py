@@ -29,7 +29,8 @@ class Parser():
         self.curToken = self.peekToken
         self.peekToken = self.lexer.getToken()
 
-    def abort(self, message):
+    @staticmethod
+    def abort(message):
         sys.exit(f"Error: {message}")
 
     def nl(self):
@@ -51,13 +52,12 @@ class Parser():
                     self.expression()
                     self.emitter.emitLine(')', 0)
 
-
             case TokenType.INPUT:
                 self.nextToken()
 
                 if self.curToken.text not in self.symbols:
                     self.symbols.add(self.curToken.text)
-                    self.emitter.emitLine(f"{self.curToken.text} = float(input(''))")  # Assume float. Will change when add typing
+                    self.emitter.emitLine(f"{self.curToken.text} = float(input(''))")  # Assume float.
 
                 self.match(TokenType.IDENT)
 
@@ -71,13 +71,42 @@ class Parser():
                 self.emitter.emitLine("):", 0)
                 self.emitter.scope += 1
 
-                while not self.checkToken(TokenType.ENDIF):  # Check for ... statements inside IF block
+                while not self.checkToken(TokenType.ENDIF) and not self.checkToken(TokenType.ELSE):  # Check for ... statements inside IF block
                     self.statement()
 
+                def check_else():
+                    if self.checkToken(TokenType.ELSE):  # ELSE ...
+                        # ELIFS are actually not defined by CIE Pseudocode
+                        self.emitter.scope -= 1
+
+                        self.nextToken()
+
+                        if self.checkToken(TokenType.IF):  # ELSE IF <condition> THEN
+                            self.nextToken()
+                            self.emitter.emit("elif (")
+                            self.comparison()
+                            self.emitter.emitLine("):", 0)
+                            self.match(TokenType.THEN)
+                            self.nl()
+
+                            self.emitter.scope += 1
+                            while not self.checkToken(TokenType.ENDIF) and not self.checkToken(TokenType.ELSE):
+                                self.statement()
+
+                            check_else()
+
+                        else:
+                            self.match(TokenType.NEWLINE)
+                            self.emitter.emitLine("else:")
+
+                            self.emitter.scope += 1
+                            while not self.checkToken(TokenType.ENDIF):
+                                self.statement()
+
+                check_else()
                 self.match(TokenType.ENDIF) # Emit error for missing ENDIF
                 self.emitter.scope -= 1
                 self.emitter.emit("\n")
-
 
             case TokenType.WHILE:
                 self.emitter.emit("while (")
@@ -94,6 +123,44 @@ class Parser():
                 self.match(TokenType.ENDWHILE)
                 self.emitter.scope -= 1
                 self.emitter.emit("\n")
+
+            case TokenType.FOR:  # FOR <ident> = <expr> TO <expr> {STEP <expr>}
+                self.emitter.emit("for")
+                self.nextToken()
+
+                if self.curToken.text not in self.symbols:  # <ident>
+                    self.symbols.add(self.curToken.text)
+
+                self.emitter.emit(f" {self.curToken.text} in range(", 0)
+
+                self.nextToken()
+                self.match(TokenType.EQ)  # =
+
+                self.expression()  # <expr>
+
+                self.match(TokenType.TO)  # TO
+                self.emitter.emit(", ", 0)
+
+                self.expression()  # <expr>
+
+                if self.checkToken(TokenType.STEP):  # STEP <expr>
+                    self.nextToken()
+                    self.emitter.emit(", ", 0)
+                    self.expression()
+
+                self.nl()
+                self.emitter.emitLine("):", 0)
+                self.emitter.scope += 1
+
+                while not self.checkToken(TokenType.NEXT):
+                    self.statement()
+
+                self.match(TokenType.NEXT)
+                self.nextToken()
+
+                self.emitter.emitLine("")
+                self.emitter.scope -= 1
+
 
             case TokenType.DECLARE:
                 self.nextToken()
@@ -136,7 +203,6 @@ class Parser():
                 self.emitter.scope -= 1
                 self.emitter.emitLine("")
                 self.emitter.scope -= 1
-
 
             case _:
                 self.abort(f"Invalid statement at {self.curToken.text} ({self.curToken.kind.name})")

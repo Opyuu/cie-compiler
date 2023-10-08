@@ -1,6 +1,23 @@
 import sys
 from lex import *
 
+
+def checkItem(set, item) -> bool:
+    for i in set:
+        if item == i[0]:
+            return True
+
+    return False
+
+
+def findItem(set, item) -> tuple:
+    for i in set:
+        if item == i[0]:
+            return i
+
+    return None
+
+
 class Parser():
     def __init__(self, lexer, emitter) -> None:
         self.lexer = lexer
@@ -9,6 +26,8 @@ class Parser():
         self.curToken = None
         self.peekToken = None
         self.symbols = set()
+
+        self.types = ["INTEGER", "BOOLEAN", "FLOAT", "STRING", "CHAR"]
 
         self.nextToken()
         self.nextToken()
@@ -21,7 +40,7 @@ class Parser():
 
     def match(self, kind):
         if not self.checkToken(kind):
-            self.abort(f"Expected token {kind}, got {self.curToken.kind.name}")
+            self.abort(f"Expected token {kind}, got {self.curToken.kind.name}.")
 
         self.nextToken()
 
@@ -55,13 +74,22 @@ class Parser():
             case TokenType.INPUT:
                 self.nextToken()
 
-                if self.curToken.text not in self.symbols:
-                    self.symbols.add(self.curToken.text)
-                    self.emitter.emitLine(f"{self.curToken.text} = float(input(''))")  # Assume float.
+                if (self.curToken.text, "INTEGER") in self.symbols:
+                    self.emitter.emitLine(f"{self.curToken.text} = int(input(''))")
+                elif (self.curToken.text, "FLOAT") in self.symbols:
+                    self.emitter.emitLine(f"{self.curToken.text} = float(input(''))")
+
+                elif (checkItem(self.symbols, self.curToken.text)):
+                    self.abort(f"Undefined type conversion from STRING to {findItem(self.symbols, self.curToken.text)[1]}.")
+
+                else:
+                    self.symbols.add((self.curToken.text, "STRING"))
+                    self.emitter.emitLine(f"{self.curToken.text} = input('')")  # Assume float.
 
                 self.match(TokenType.IDENT)
 
             case TokenType.IF:  # IF <comparison> THEN ... ENDIF
+                prevSymbols = set(self.symbols)
                 self.emitter.emit("if (")
                 self.nextToken()
                 self.comparison()
@@ -107,8 +135,10 @@ class Parser():
                 self.match(TokenType.ENDIF) # Emit error for missing ENDIF
                 self.emitter.scope -= 1
                 self.emitter.emit("\n")
+                self.symbols = set(prevSymbols)
 
             case TokenType.WHILE:
+                prevSymbols = set(self.symbols)
                 self.emitter.emit("while (")
                 self.nextToken()
                 self.comparison()
@@ -123,13 +153,18 @@ class Parser():
                 self.match(TokenType.ENDWHILE)
                 self.emitter.scope -= 1
                 self.emitter.emit("\n")
+                self.symbols = set(prevSymbols)
 
             case TokenType.FOR:  # FOR <ident> = <expr> TO <expr> {STEP <expr>}
+                prevSymbols = set(self.symbols)
                 self.emitter.emit("for")
                 self.nextToken()
 
-                if self.curToken.text not in self.symbols:  # <ident>
-                    self.symbols.add(self.curToken.text)
+                if not checkItem(self.symbols, self.curToken.text):  # <ident>
+                    self.symbols.add((self.curToken.text, "INTEGER"))
+
+                elif (self.curToken.text, "INTEGER") not in self.symbols:
+                    self.abort(f"Unable to iterate using type {findItem(self.symbols, self.curToken.text)[1]}.")
 
                 self.emitter.emit(f" {self.curToken.text} in range(", 0)
 
@@ -161,22 +196,35 @@ class Parser():
                 self.emitter.emitLine("")
                 self.emitter.scope -= 1
 
+                self.symbols = set(prevSymbols)
+
 
             case TokenType.DECLARE:
                 self.nextToken()
 
-                if self.curToken.text not in self.symbols:
-                    self.symbols.add(self.curToken.text)
-
-                self.emitter.emit(f"{self.curToken.text} = ")
+                identName = self.curToken.text
+                self.emitter.emit(f"{self.curToken.text} = None")
                 self.match(TokenType.IDENT)
-                self.match(TokenType.EQ)
-                self.expression()
+                self.match(TokenType.COLON)
+
+                if not self.curToken.text in self.types:
+                    self.abort(f"Unknown type: {self.curToken.text}.")
+
+
+                self.emitter.emit(f"  # Type {self.curToken.text}", 0)
+
+                if not checkItem(self.symbols, identName):
+                    self.symbols.add((identName, self.curToken.text))
+                else:
+                    self.abort(f"Re-declaration of identifier {identName}.")
+
+                self.nextToken()
+                # self.expression()
                 self.emitter.emitLine("")
 
             case TokenType.IDENT:
-                if self.curToken.text not in self.symbols:
-                    self.abort(f"Unknown identifier: {self.curToken.text}")
+                if not findItem(self.symbols, self.curToken.text):
+                    self.abort(f"Unknown identifier: {self.curToken.text}.")
 
                 self.emitter.emit(f"{self.curToken.text}")
                 self.nextToken()
@@ -186,6 +234,7 @@ class Parser():
                 self.emitter.emitLine("")
 
             case TokenType.REPEAT:
+                prevSymbols = set(self.symbols)
                 self.emitter.emitLine("while True:")
                 self.nextToken()
                 self.match(TokenType.NEWLINE)
@@ -204,8 +253,10 @@ class Parser():
                 self.emitter.emitLine("")
                 self.emitter.scope -= 1
 
+                self.symbols = set(prevSymbols)
+
             case _:
-                self.abort(f"Invalid statement at {self.curToken.text} ({self.curToken.kind.name})")
+                self.abort(f"Invalid statement at {self.curToken.text} ({self.curToken.kind.name}).")
 
         self.nl()
 
@@ -217,7 +268,7 @@ class Parser():
             self.nextToken()
             self.expression()
         else:
-            self.abort(f"Expected comparison operator at: {self.curToken.text}")
+            self.abort(f"Expected comparison operator at: {self.curToken.text}.")
 
     def expression(self):
         self.term()
@@ -247,14 +298,20 @@ class Parser():
 
             self.nextToken()
         elif self.checkToken(TokenType.IDENT):
-            if self.curToken.text not in self.symbols:
-                self.abort(f"Referencing variable before assignment: {self.curToken.text}")
+            if self.curToken.text == "TRUE":
+                self.emitter.emit("True", 0)
+            elif self.curToken.text == "FALSE":
+                self.emitter.emit("False", 0)
 
-            self.emitter.emit(f"{self.curToken.text}", 0)
+            elif not checkItem(self.symbols, self.curToken.text):
+                self.abort(f"Referencing variable before assignment: {self.curToken.text}.")
+
+            else:
+                self.emitter.emit(f"{self.curToken.text}", 0)
             self.nextToken()
         else:
             # Error!
-            self.abort("Unexpected token at " + self.curToken.text)
+            self.abort(f"Unexpected token at {self.curToken.text}.")
 
     def isComparisonOperator(self) -> bool:
         return self.checkToken(TokenType.GT) or self.checkToken(TokenType.GTEQ) or self.checkToken(TokenType.LT) or self.checkToken(TokenType.LTEQ) or self.checkToken(TokenType.EQEQ) or self.checkToken(TokenType.NOTEQ)

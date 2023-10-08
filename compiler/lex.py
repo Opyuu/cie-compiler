@@ -40,6 +40,7 @@ class TokenType(enum.Enum):
     GT = 210  # >
     GTEQ = 211  # >=
     IDENT = 212  # Identifiers
+    COLON = 213
 
 
 class Token():
@@ -163,6 +164,9 @@ class Lexer():
 
                 tokText = self.source[startPos : self.ptr + 1]
                 token = Token(tokText, TokenType.NUMBER)
+
+            case ':':
+                token = Token(self.char, TokenType.COLON)
 
             case '\n':
                 token = Token(self.char, TokenType.NEWLINE)

@@ -7,6 +7,9 @@ Navigate to location of the folder (you should see a sub directory ` /compiler`)
 and use `python3 compiler/main.py {file}` to compile. 
 Compiled file should be outputted as out.py if it compiles successfully.
 
+You can also compile to C++! Use `python3 compiler/main.py {file} c++` or `python3 compiler/main.py {file} cpp`
+to compile, and it should be outputted as out.cpp if it compiles successfully.
+
 `test.txt` and `test2.txt` have been included as valid Pseudocode to test.
 
 <h2>Currently supported:</h2>
@@ -20,11 +23,22 @@ DECLARE y : BOOLEAN
 y = TRUE
 ```
 * INTEGERS can become floats because of how Python works...
+* But, they will be correct if it is compiled to C++.
 ```
 DECLARE x : INTEGER
 x = 1 / 2  // x == 0.5
 ```
+* So typing remains as type annotation for Python.
+
 \
+**Constants**
+```
+CONSTANT x = 2
+OUTPUT x  // "2"
+x = 1  // Error: Re-assignment of constant 'x'
+```
+* Constants are immutable & cannot be re-assigned.
+
 **Printing**:
 ```
 OUTPUT "Hello World"
@@ -35,6 +49,7 @@ OUTPUT var  // Printing vars
 ```
 INPUT var  // Var is assigned value of input
 ```
+* If var isn't defined, then it will be defined as a string and inputted.
 * Inputting to an int will automatically typecast the input.
 
 ```
@@ -70,8 +85,10 @@ ELSE
     ...
 ENDIF
 ```
+* Condition checking for different variables are not explicitly checked for, so be cautious when using them.
+
 \
-**REPEAT...UNTIL loops**:
+**REPEAT ... UNTIL loops**:
 ```
 REPEAT
     ...

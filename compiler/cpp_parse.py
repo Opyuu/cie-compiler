@@ -1,6 +1,12 @@
 import sys
 from lex import *
 
+varMap = {
+    "INTEGER": "int",
+    "BOOLEAN": "bool",
+    "FLOAT": "float",
+    "STRING": "std::string"
+}
 
 def checkItem(set, item) -> bool:
     for i in set:
@@ -65,27 +71,30 @@ class Parser():
                 self.nextToken()
 
                 if self.checkToken(TokenType.STRING):
-                    self.emitter.emitLine(f'print("{self.curToken.text}")')
+                    self.emitter.emitLine(f'std::cout << "{self.curToken.text}" << std::endl;')
                     self.nextToken()
                 else:
-                    self.emitter.emit(f'print(')
+                    self.emitter.emit(f'std::cout << ')
                     self.expression()
-                    self.emitter.emitLine(')', 0)
+                    self.emitter.emitLine(' << std::endl;', 0)
 
             case TokenType.INPUT:
                 self.nextToken()
 
+
+
                 if (self.curToken.text, "INTEGER") in self.symbols:
-                    self.emitter.emitLine(f"{self.curToken.text} = int(input(''))")
+                    self.emitter.emitLine(f"std::cin >> {self.curToken.text};")
                 elif (self.curToken.text, "FLOAT") in self.symbols:
-                    self.emitter.emitLine(f"{self.curToken.text} = float(input(''))")
+                    self.emitter.emitLine(f"std::cin >> {self.curToken.text};")
 
                 elif (checkItem(self.symbols, self.curToken.text)):
                     self.abort(f"Undefined type conversion from 'STRING' to '{findItem(self.symbols, self.curToken.text)[1]}'.")
 
                 else:
                     self.symbols.add((self.curToken.text, "STRING"))
-                    self.emitter.emitLine(f"{self.curToken.text} = input('')")  # Assume float.
+                    self.emitter.emitLine(f"std::string {self.curToken.text};")
+                    self.emitter.emitLine(f"std::cin << {self.curToken.text};")  # Assume float.
 
                 self.match(TokenType.IDENT)
 
@@ -97,7 +106,7 @@ class Parser():
 
                 self.match(TokenType.THEN)
                 self.nl()
-                self.emitter.emitLine("):", 0)
+                self.emitter.emitLine("){", 0)
                 self.emitter.scope += 1
 
                 while not self.checkToken(TokenType.ENDIF) and not self.checkToken(TokenType.ELSE):  # Check for ... statements inside IF block
@@ -107,14 +116,15 @@ class Parser():
                     if self.checkToken(TokenType.ELSE):  # ELSE ...
                         # ELIFS are actually not defined by CIE Pseudocode
                         self.emitter.scope -= 1
+                        self.emitter.emit("} ")
 
                         self.nextToken()
 
                         if self.checkToken(TokenType.IF):  # ELSE IF <condition> THEN
                             self.nextToken()
-                            self.emitter.emit("elif (")
+                            self.emitter.emit("else if (", 0)
                             self.comparison()
-                            self.emitter.emitLine("):", 0)
+                            self.emitter.emitLine("){", 0)
                             self.match(TokenType.THEN)
                             self.nl()
 
@@ -126,7 +136,7 @@ class Parser():
 
                         else:
                             self.match(TokenType.NEWLINE)
-                            self.emitter.emitLine("else:")
+                            self.emitter.emitLine("else{", 0)
 
                             self.emitter.scope += 1
                             while not self.checkToken(TokenType.ENDIF):
@@ -135,7 +145,7 @@ class Parser():
                 check_else()
                 self.match(TokenType.ENDIF) # Emit error for missing ENDIF
                 self.emitter.scope -= 1
-                self.emitter.emit("\n")
+                self.emitter.emitLine("}\n")
                 self.symbols = set(prevSymbols)
 
             case TokenType.WHILE:
@@ -145,7 +155,7 @@ class Parser():
                 self.comparison()
 
                 self.match(TokenType.NEWLINE)
-                self.emitter.emitLine("):", 0)
+                self.emitter.emitLine("){", 0)
                 self.emitter.scope += 1
 
                 while not self.checkToken(TokenType.ENDWHILE):
@@ -153,21 +163,24 @@ class Parser():
 
                 self.match(TokenType.ENDWHILE)
                 self.emitter.scope -= 1
-                self.emitter.emit("\n")
+                self.emitter.emitLine("}\n")
                 self.symbols = set(prevSymbols)
 
             case TokenType.FOR:  # FOR <ident> = <expr> TO <expr> {STEP <expr>}
                 prevSymbols = set(self.symbols)
-                self.emitter.emit("for")
+                self.emitter.emit("for (")
                 self.nextToken()
+
+                iterator = self.curToken.text
 
                 if not checkItem(self.symbols, self.curToken.text):  # <ident>
                     self.symbols.add((self.curToken.text, "INTEGER"))
+                    self.emitter.emit("int ", 0)
 
                 elif (self.curToken.text, "INTEGER") not in self.symbols:
                     self.abort(f"Unable to iterate using type '{findItem(self.symbols, self.curToken.text)[1]}'.")
 
-                self.emitter.emit(f" {self.curToken.text} in range(", 0)
+                self.emitter.emit(f"{self.curToken.text} = ", 0)
 
                 self.nextToken()
                 self.match(TokenType.EQ)  # =
@@ -175,17 +188,19 @@ class Parser():
                 self.expression()  # <expr>
 
                 self.match(TokenType.TO)  # TO
-                self.emitter.emit(", ", 0)
+                self.emitter.emit(f"; {iterator} < ", 0)
 
                 self.expression()  # <expr>
 
                 if self.checkToken(TokenType.STEP):  # STEP <expr>
                     self.nextToken()
-                    self.emitter.emit(", ", 0)
+                    self.emitter.emit(f"; {iterator} += ", 0)
                     self.expression()
+                else:
+                    self.emitter.emit(f"; {iterator}++", 0)
 
                 self.nl()
-                self.emitter.emitLine("):", 0)
+                self.emitter.emitLine("){", 0)
                 self.emitter.scope += 1
 
                 while not self.checkToken(TokenType.NEXT):
@@ -194,8 +209,9 @@ class Parser():
                 self.match(TokenType.NEXT)
                 self.nextToken()
 
-                self.emitter.emitLine("")
                 self.emitter.scope -= 1
+                self.emitter.emitLine("}\n")
+
 
                 self.symbols = set(prevSymbols)
 
@@ -203,15 +219,19 @@ class Parser():
                 self.nextToken()
 
                 identName = self.curToken.text
-                self.emitter.emit(f"{self.curToken.text} = None")
+                # self.emitter.emit(f"{self.curToken.text} = None")
                 self.match(TokenType.IDENT)
                 self.match(TokenType.COLON)
 
                 if not self.curToken.text in self.types:
                     self.abort(f"Unknown type: '{self.curToken.text}'.")
 
+                self.emitter.emit(f"{varMap[self.curToken.text]} {identName}")
 
-                self.emitter.emit(f"  # Type {self.curToken.text}", 0)
+                if (self.curToken.text == "INTEGER"):
+                    self.emitter.emit(" = 0", 0)
+
+                self.emitter.emitLine(";", 0)
 
                 if not checkItem(self.symbols, identName):
                     self.symbols.add((identName, self.curToken.text))
@@ -219,14 +239,13 @@ class Parser():
                     self.abort(f"Re-declaration of identifier '{identName}'.")
 
                 self.nextToken()
-                self.emitter.emitLine("")
 
             case TokenType.CONSTANT:
                 self.nextToken()
 
                 if not checkItem(self.symbols, self.curToken.text):
                     self.symbols.add((self.curToken.text, "CONSTANT"))
-                    self.emitter.emit(f"{self.curToken.text} = ")
+                    self.emitter.emit(f"const auto {self.curToken.text} = ")
                 else:
                     self.abort(f"Re-declaration of CONSTANT '{self.curToken.text}'.")
 
@@ -236,7 +255,7 @@ class Parser():
                 self.match(TokenType.EQ)
 
                 self.expression()
-                self.emitter.emitLine("")
+                self.emitter.emitLine(";", 0)
 
 
 
@@ -252,11 +271,11 @@ class Parser():
                 self.match(TokenType.EQ)
                 self.emitter.emit(" = ", 0)
                 self.expression()
-                self.emitter.emitLine("")
+                self.emitter.emitLine(";", 0)
 
             case TokenType.REPEAT:
                 prevSymbols = set(self.symbols)
-                self.emitter.emitLine("while True:")
+                self.emitter.emitLine("do {")
                 self.nextToken()
                 self.match(TokenType.NEWLINE)
                 self.emitter.scope += 1
@@ -265,14 +284,11 @@ class Parser():
                     self.statement()
 
                 self.match(TokenType.UNTIL)
-                self.emitter.emit("if (")
+                self.emitter.scope -= 1
+                self.emitter.emit("} while (!(")
                 self.comparison()
-                self.emitter.emitLine("):", 0)
-                self.emitter.scope += 1
-                self.emitter.emitLine("break")
-                self.emitter.scope -= 1
-                self.emitter.emitLine("")
-                self.emitter.scope -= 1
+                self.emitter.emitLine("));", 0)
+
 
                 self.symbols = set(prevSymbols)
 
@@ -320,9 +336,9 @@ class Parser():
             self.nextToken()
         elif self.checkToken(TokenType.IDENT):
             if self.curToken.text == "TRUE":
-                self.emitter.emit("True", 0)
+                self.emitter.emit("true", 0)
             elif self.curToken.text == "FALSE":
-                self.emitter.emit("False", 0)
+                self.emitter.emit("false", 0)
 
             elif not checkItem(self.symbols, self.curToken.text):
                 self.abort(f"Referencing variable before assignment: {self.curToken.text}.")
@@ -338,7 +354,8 @@ class Parser():
         return self.checkToken(TokenType.GT) or self.checkToken(TokenType.GTEQ) or self.checkToken(TokenType.LT) or self.checkToken(TokenType.LTEQ) or self.checkToken(TokenType.EQEQ) or self.checkToken(TokenType.NOTEQ)
 
     def program(self):
-        self.emitter.headerLine("def main():")
+        self.emitter.headerLine("#include <iostream>\n")
+        self.emitter.headerLine("int main(){")
         self.emitter.scope += 1
         while self.checkToken(TokenType.NEWLINE):
             self.nextToken()
@@ -346,9 +363,9 @@ class Parser():
         while not self.checkToken(TokenType.EOF):
             self.statement()
 
-        self.emitter.emitLine('return')
+        self.emitter.emitLine('return 0;')
 
         self.emitter.scope -= 1
 
-        self.emitter.emitLine('\nmain()')
+        self.emitter.emitLine('}')
         self.emitter.writeFile()

@@ -1,12 +1,16 @@
+DECLARE nums : INTEGER
 OUTPUT "How many fibonacci numbers do you want?"
 INPUT nums
 OUTPUT ""
 
-DECLARE a = 0
-DECLARE b = 1
+DECLARE a : INTEGER
+a = 1
+DECLARE b : INTEGER
+b = 1
 WHILE nums > 0
     OUTPUT a
-    DECLARE c = a + b
+    DECLARE c : INTEGER
+    c = a + b
     a = b
     b = c
     nums = nums - 1

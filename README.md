@@ -21,7 +21,11 @@ x = 2
 
 DECLARE y : BOOLEAN
 y = TRUE
+
+DECLARE z : REAL
+y = 3.14
 ```
+* Floats are REALs in Pseudocode.
 * INTEGERS can become floats because of how Python works...
 * But, they will be correct if it is compiled to C++.
 ```
@@ -37,7 +41,7 @@ CONSTANT x = 2
 OUTPUT x  // "2"
 x = 1  // Error: Re-assignment of constant 'x'
 ```
-* Constants are immutable & cannot be re-assigned.
+* Constants cannot be re-assigned.
 
 **Printing**:
 ```
@@ -118,8 +122,8 @@ OUTPUT sum
 ```
 * You cannot iterate using a non-INTEGER index.
 ```
-DECLARE x : FLOAT
-FOR x = 0 TO 10  // Unable to iterate using type FLOAT
+DECLARE x : REAL
+FOR x = 0 TO 10  // Unable to iterate using type REAL
     ...
 NEXT x
 ```

@@ -28,7 +28,7 @@ class Parser():
         self.symbols = set()
         self.constants = set()
 
-        self.types = ["INTEGER", "BOOLEAN", "FLOAT", "STRING", "CHAR"]
+        self.types = ["INTEGER", "BOOLEAN", "REAL", "STRING", "CHAR"]
 
         self.nextToken()
         self.nextToken()
@@ -77,7 +77,7 @@ class Parser():
 
                 if (self.curToken.text, "INTEGER") in self.symbols:
                     self.emitter.emitLine(f"{self.curToken.text} = int(input(''))")
-                elif (self.curToken.text, "FLOAT") in self.symbols:
+                elif (self.curToken.text, "REAL") in self.symbols:
                     self.emitter.emitLine(f"{self.curToken.text} = float(input(''))")
 
                 elif (checkItem(self.symbols, self.curToken.text)):
@@ -200,26 +200,52 @@ class Parser():
                 self.symbols = set(prevSymbols)
 
             case TokenType.DECLARE:
+                # DECLARE arr : [1:10] OF INTEGER
                 self.nextToken()
 
                 identName = self.curToken.text
-                self.emitter.emit(f"{self.curToken.text} = None")
+                self.emitter.emit(f"{self.curToken.text} = ")
                 self.match(TokenType.IDENT)
                 self.match(TokenType.COLON)
 
                 if not self.curToken.text in self.types:
-                    self.abort(f"Unknown type: '{self.curToken.text}'.")
+                    # Check if []
+                    if self.curToken.text == '[':
+                        self.nextToken()
+                        print(self.curToken.text)
+                        self.match(TokenType.NUMBER)
+                        print(self.curToken.text)
+                        self.match(TokenType.COLON)
+                        print(self.curToken.text)
+                        self.match(TokenType.NUMBER)
+                        print(self.curToken.text)
 
+                        self.emitter.emit(f"[]", 0)
 
-                self.emitter.emit(f"  # Type {self.curToken.text}", 0)
+                        self.match(TokenType.CLOSE_SQ_BRAC)
 
-                if not checkItem(self.symbols, identName):
-                    self.symbols.add((identName, self.curToken.text))
+                        self.match(TokenType.OF)
+
+                        if not self.curToken.text in self.types:
+                            self.abort(f"Unknown type: '{self.curToken.text}'.")
+
+                        self.emitter.emitLine(f"  # Type {self.curToken.text}", 0)
+
+                        # Array of type self.curToken.text
+                        self.nextToken()
+                    else:
+                        self.abort(f"Unknown type: '{self.curToken.text}'.")
+
                 else:
-                    self.abort(f"Re-declaration of identifier '{identName}'.")
+                    self.emitter.emit(f"None", 0)
+                    self.emitter.emitLine(f"  # Type {self.curToken.text}", 0)
 
-                self.nextToken()
-                self.emitter.emitLine("")
+                    if not checkItem(self.symbols, identName):
+                        self.symbols.add((identName, self.curToken.text))
+                    else:
+                        self.abort(f"Re-declaration of identifier '{identName}'.")
+
+                    self.nextToken()
 
             case TokenType.CONSTANT:
                 self.nextToken()

@@ -4,7 +4,7 @@ from lex import *
 varMap = {
     "INTEGER": "int",
     "BOOLEAN": "bool",
-    "FLOAT": "float",
+    "REAL": "float",
     "STRING": "std::string"
 }
 
@@ -34,7 +34,7 @@ class Parser():
         self.symbols = set()
         self.constants = set()
 
-        self.types = ["INTEGER", "BOOLEAN", "FLOAT", "STRING", "CHAR"]
+        self.types = ["INTEGER", "BOOLEAN", "REAL", "STRING", "CHAR"]
 
         self.nextToken()
         self.nextToken()
@@ -85,7 +85,7 @@ class Parser():
 
                 if (self.curToken.text, "INTEGER") in self.symbols:
                     self.emitter.emitLine(f"std::cin >> {self.curToken.text};")
-                elif (self.curToken.text, "FLOAT") in self.symbols:
+                elif (self.curToken.text, "REAL") in self.symbols:
                     self.emitter.emitLine(f"std::cin >> {self.curToken.text};")
 
                 elif (checkItem(self.symbols, self.curToken.text)):

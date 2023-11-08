@@ -26,6 +26,7 @@ class TokenType(enum.Enum):
     TO = 114
     STEP = 115
     NEXT = 116
+    OF = 117
 
     # Operators
     EQ = 201
@@ -41,6 +42,10 @@ class TokenType(enum.Enum):
     GTEQ = 211  # >=
     IDENT = 212  # Identifiers
     COLON = 213
+
+    # Special chars
+    OPEN_SQ_BRAC = 301
+    CLOSE_SQ_BRAC = 302
 
 
 class Token():
@@ -188,6 +193,12 @@ class Lexer():
                 else:
                     token = Token(tokText, keyword)
                 pass
+
+            case '[':
+                token = Token(self.char, TokenType.OPEN_SQ_BRAC)
+
+            case ']':
+                token = Token(self.char, TokenType.CLOSE_SQ_BRAC)
 
             case _:
                 self.abort(f"Unknown token: '{self.char}'")
